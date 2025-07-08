@@ -39,6 +39,162 @@ const loadInitialData = () => {
     }
 };
 
+// GET /classifications - Get all classifications with optional filtering and sorting
+app.get('/classifications', (req, res) => {
+    try {
+        let results = [...classifications];
+
+        // Filter by classification type
+        if (req.query.type) {
+            results = results.filter(doc =>
+                doc.classifications.some(c =>
+                    c.label.toLowerCase().includes(req.query.type.toLowerCase())
+                )
+            );
+        }
+
+        // Filter by confidence range
+        if (req.query.min_confidence) {
+            const minConf = parseFloat(req.query.min_confidence);
+            results = results.filter(doc =>
+                doc.classifications.some(c => c.score >= minConf)
+            );
+        }
+
+        if (req.query.max_confidence) {
+            const maxConf = parseFloat(req.query.max_confidence);
+            results = results.filter(doc =>
+                doc.classifications.some(c => c.score <= maxConf)
+            );
+        }
+
+        // Sort results
+        if (req.query.sort) {
+            const sortBy = req.query.sort;
+            const order = req.query.order === 'desc' ? -1 : 1;
+
+            results.sort((a, b) => {
+                switch (sortBy) {
+                    case 'name':
+                        return order * a.document_name.localeCompare(b.document_name);
+                    case 'confidence':
+                        const aMax = Math.max(...a.classifications.map(c => c.score));
+                        const bMax = Math.max(...b.classifications.map(c => c.score));
+                        return order * (aMax - bMax);
+                    case 'updated':
+                        return order * (new Date(a.updated_at) - new Date(b.updated_at));
+                    default:
+                        return 0;
+                }
+            });
+        }
+
+        // Pagination
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 100;
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+
+        const paginatedResults = results.slice(startIndex, endIndex);
+
+        res.json({
+            data: paginatedResults,
+            pagination: {
+                page,
+                limit,
+                total: results.length,
+                pages: Math.ceil(results.length / limit)
+            }
+        });
+    } catch (error) {
+        console.error('Error in GET /classifications:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// POST /classifications - Ingest new classification data
+app.post('/classifications', (req, res) => {
+    try {
+        const newClassifications = req.body;
+
+        if (!Array.isArray(newClassifications)) {
+            return res.status(400).json({ error: 'Expected array of classifications' });
+        }
+
+        const processedData = newClassifications.map(doc => ({
+            id: uuidv4(),
+            document_name: doc.document_name,
+            classifications: doc.classifications,
+            manually_edited: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        }));
+
+        classifications.push(...processedData);
+
+        console.log(`📄 Added ${processedData.length} new documents`);
+
+        res.status(201).json({
+            message: `Successfully ingested ${processedData.length} classifications`,
+            data: processedData
+        });
+    } catch (error) {
+        console.error('Error in POST /classifications:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// PATCH /classifications/:id - Update a specific classification
+app.patch('/classifications/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+
+        const docIndex = classifications.findIndex(doc => doc.id === id);
+
+        if (docIndex === -1) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
+
+        // Update the document
+        const updatedDoc = {
+            ...classifications[docIndex],
+            ...updates,
+            manually_edited: true,
+            updated_at: new Date().toISOString()
+        };
+
+        classifications[docIndex] = updatedDoc;
+
+        console.log(`✏️ Updated document: ${updatedDoc.document_name}`);
+
+        res.json({
+            message: 'Classification updated successfully',
+            data: updatedDoc
+        });
+    } catch (error) {
+        console.error('Error in PATCH /classifications/:id:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// GET /classifications/:id - Get specific classification
+app.get('/classifications/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const doc = classifications.find(doc => doc.id === id);
+
+        if (!doc) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
+
+        res.json({ data: doc });
+    } catch (error) {
+        console.error('Error in GET /classifications/:id:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.json({
@@ -58,23 +214,11 @@ app.get('/', (req, res) => {
         endpoints: [
             'GET /health - Health check',
             'GET /classifications - Get all classifications',
+            'GET /classifications/:id - Get specific classification',
             'POST /classifications - Ingest classification data',
             'PATCH /classifications/:id - Update classification'
         ]
     });
-});
-
-// Get all classifications (basic version)
-app.get('/classifications', (req, res) => {
-    try {
-        res.json({
-            data: classifications,
-            total: classifications.length
-        });
-    } catch (error) {
-        console.error('Error in GET /classifications:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
 });
 
 // Error handling middleware
