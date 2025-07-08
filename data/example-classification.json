@@ -1,0 +1,82 @@
+[
+  {
+    "document_name": "Clinical Summary",
+    "classifications": [
+      { "label": "Medical", "score": 0.87 },
+      { "label": "Regulatory", "score": 0.08 },
+      { "label": "Correspondence", "score": 0.05 }
+    ]
+  },
+  {
+    "document_name": "Invoice April",
+    "classifications": [
+      { "label": "Financial", "score": 0.91 },
+      { "label": "Legal", "score": 0.06 },
+      { "label": "Miscellaneous", "score": 0.03 }
+    ]
+  },
+  {
+    "document_name": "Patient Consent",
+    "classifications": [
+      { "label": "Legal", "score": 0.76 },
+      { "label": "Medical", "score": 0.19 },
+      { "label": "Administrative", "score": 0.05 }
+    ]
+  },
+  {
+    "document_name": "Lab Results",
+    "classifications": [
+      { "label": "Medical", "score": 0.94 },
+      { "label": "Laboratory", "score": 0.03 },
+      { "label": "Other", "score": 0.03 }
+    ]
+  },
+  {
+    "document_name": "Contract Draft",
+    "classifications": [
+      { "label": "Legal", "score": 0.81 },
+      { "label": "Business", "score": 0.14 },
+      { "label": "Financial", "score": 0.05 }
+    ]
+  },
+  {
+    "document_name": "Email Chain with Sponsor",
+    "classifications": [
+      { "label": "Correspondence", "score": 0.83 },
+      { "label": "Administrative", "score": 0.1 },
+      { "label": "Legal", "score": 0.07 }
+    ]
+  },
+  {
+    "document_name": "Monitoring Visit Report",
+    "classifications": [
+      { "label": "Monitoring", "score": 0.89 },
+      { "label": "Regulatory", "score": 0.07 },
+      { "label": "Medical", "score": 0.04 }
+    ]
+  },
+  {
+    "document_name": "Budget Proposal",
+    "classifications": [
+      { "label": "Financial", "score": 0.86 },
+      { "label": "Administrative", "score": 0.09 },
+      { "label": "Legal", "score": 0.05 }
+    ]
+  },
+  {
+    "document_name": "Protocol Amendment",
+    "classifications": [
+      { "label": "Regulatory", "score": 0.74 },
+      { "label": "Medical", "score": 0.2 },
+      { "label": "Legal", "score": 0.06 }
+    ]
+  },
+  {
+    "document_name": "Internal Memo",
+    "classifications": [
+      { "label": "Administrative", "score": 0.77 },
+      { "label": "Correspondence", "score": 0.18 },
+      { "label": "Other", "score": 0.05 }
+    ]
+  }
+]
