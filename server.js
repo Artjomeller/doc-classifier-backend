@@ -15,6 +15,9 @@ app.use(bodyParser.json());
 // In-memory storage for classifications
 let classifications = [];
 
+// NEW: Undo history storage
+let undoHistory = new Map(); // documentId -> previousState
+
 // Load initial data from JSON file
 const loadInitialData = () => {
     try {
@@ -32,9 +35,9 @@ const loadInitialData = () => {
             updated_at: new Date().toISOString()
         }));
 
-        console.log(`✅ Loaded ${classifications.length} documents successfully`);
+        console.log(`Loaded ${classifications.length} documents successfully`);
     } catch (error) {
-        console.error('❌ Error loading initial data:', error);
+        console.error('Error loading initial data:', error);
         classifications = [];
     }
 };
@@ -144,7 +147,7 @@ app.post('/classifications', (req, res) => {
     }
 });
 
-// PATCH /classifications/:id - Update a specific classification
+// PATCH /classifications/:id - Update a specific classification (UPDATED WITH UNDO SUPPORT)
 app.patch('/classifications/:id', (req, res) => {
     try {
         const { id } = req.params;
@@ -156,6 +159,14 @@ app.patch('/classifications/:id', (req, res) => {
             return res.status(404).json({ error: 'Document not found' });
         }
 
+        // Save previous state for undo (NEW)
+        const previousState = { ...classifications[docIndex] };
+        undoHistory.set(id, {
+            previousState,
+            timestamp: new Date(),
+            canUndo: true
+        });
+
         // Update the document
         const updatedDoc = {
             ...classifications[docIndex],
@@ -166,14 +177,57 @@ app.patch('/classifications/:id', (req, res) => {
 
         classifications[docIndex] = updatedDoc;
 
-        console.log(`✏️ Updated document: ${updatedDoc.document_name}`);
+        console.log(`Updated document: ${updatedDoc.document_name}`);
 
         res.json({
             message: 'Classification updated successfully',
-            data: updatedDoc
+            data: updatedDoc,
+            canUndo: true  // NEW: Indicate undo is available
         });
     } catch (error) {
         console.error('Error in PATCH /classifications/:id:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// NEW: POST /classifications/:id/undo - Undo last change
+app.post('/classifications/:id/undo', (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const undoData = undoHistory.get(id);
+        if (!undoData || !undoData.canUndo) {
+            return res.status(400).json({ error: 'No changes to undo' });
+        }
+
+        // Check if undo is still valid (within time limit)
+        const timeDiff = new Date() - undoData.timestamp;
+        const undoTimeLimit = 30 * 1000; // 30 seconds
+
+        if (timeDiff > undoTimeLimit) {
+            undoHistory.delete(id);
+            return res.status(400).json({ error: 'Undo time limit exceeded' });
+        }
+
+        const docIndex = classifications.findIndex(doc => doc.id === id);
+        if (docIndex === -1) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
+
+        // Restore previous state
+        classifications[docIndex] = undoData.previousState;
+
+        // Clear undo history for this document
+        undoHistory.delete(id);
+
+        console.log(`🔄 Undone changes for document: ${classifications[docIndex].document_name}`);
+
+        res.json({
+            message: 'Changes undone successfully',
+            data: classifications[docIndex]
+        });
+    } catch (error) {
+        console.error('Error in POST /classifications/:id/undo:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -201,6 +255,7 @@ app.get('/health', (req, res) => {
         status: 'OK',
         timestamp: new Date().toISOString(),
         documents_count: classifications.length,
+        undo_history_count: undoHistory.size,  // NEW
         server: 'Document Classifier API'
     });
 });
@@ -216,7 +271,8 @@ app.get('/', (req, res) => {
             'GET /classifications - Get all classifications',
             'GET /classifications/:id - Get specific classification',
             'POST /classifications - Ingest classification data',
-            'PATCH /classifications/:id - Update classification'
+            'PATCH /classifications/:id - Update classification',
+            'POST /classifications/:id/undo - Undo last change'  // NEW
         ]
     });
 });
@@ -234,10 +290,10 @@ app.use('*', (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-    console.log('🚀 Document Classifier Backend Server');
-    console.log(`📡 Server running on http://localhost:${PORT}`);
-    console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-    console.log('📚 Loading initial data...');
+    console.log('Document Classifier Backend Server');
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Health check: http://localhost:${PORT}/health`);
+    console.log('Loading initial data...');
     loadInitialData();
 });
 
